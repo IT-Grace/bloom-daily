@@ -111,7 +111,11 @@ export function TaskDialog({ open, onOpenChange, onSubmit, task, isPending }: Ta
                       placeholder="Add any notes or details..."
                       className="resize-none"
                       rows={2}
-                      {...field}
+                      value={field.value || ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
                       data-testid="input-task-description"
                     />
                   </FormControl>

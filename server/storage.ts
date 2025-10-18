@@ -40,8 +40,15 @@ export class MemStorage implements IStorage {
   async createTask(insertTask: InsertTask): Promise<Task> {
     const id = randomUUID();
     const task: Task = {
-      ...insertTask,
       id,
+      title: insertTask.title,
+      description: insertTask.description ?? null,
+      time: insertTask.time,
+      frequency: insertTask.frequency,
+      dayOfMonth: insertTask.dayOfMonth ?? null,
+      monthOfYear: insertTask.monthOfYear ?? null,
+      dayOfYear: insertTask.dayOfYear ?? null,
+      isActive: insertTask.isActive ?? true,
       createdAt: new Date(),
     };
     this.tasks.set(id, task);
@@ -53,8 +60,15 @@ export class MemStorage implements IStorage {
     if (!existingTask) return undefined;
 
     const updatedTask: Task = {
-      ...insertTask,
       id,
+      title: insertTask.title,
+      description: insertTask.description ?? null,
+      time: insertTask.time,
+      frequency: insertTask.frequency,
+      dayOfMonth: insertTask.dayOfMonth ?? null,
+      monthOfYear: insertTask.monthOfYear ?? null,
+      dayOfYear: insertTask.dayOfYear ?? null,
+      isActive: insertTask.isActive ?? true,
       createdAt: existingTask.createdAt,
     };
     this.tasks.set(id, updatedTask);
