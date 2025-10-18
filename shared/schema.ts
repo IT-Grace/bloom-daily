@@ -4,7 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const tasks = pgTable("tasks", {
-  id: varchar("id").primaryKey(),
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   description: text("description"),
   time: text("time").notNull(),
@@ -17,7 +17,7 @@ export const tasks = pgTable("tasks", {
 });
 
 export const completions = pgTable("completions", {
-  id: varchar("id").primaryKey(),
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   taskId: varchar("task_id").notNull().references(() => tasks.id),
   completedAt: timestamp("completed_at").notNull().defaultNow(),
   date: text("date").notNull(), // YYYY-MM-DD format for easy querying

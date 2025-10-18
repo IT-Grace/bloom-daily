@@ -1,5 +1,7 @@
 import { type Task, type InsertTask, type Completion, type InsertCompletion, type TaskWithCompletion, type DailySummary, type MonthlyStats } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { tasks, completions } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
   getTasks(): Promise<Task[]>;
@@ -20,112 +22,93 @@ export interface IStorage {
   getMonthlyStats(year: number, month: number): Promise<MonthlyStats>;
 }
 
-export class MemStorage implements IStorage {
-  private tasks: Map<string, Task>;
-  private completions: Map<string, Completion>;
-
-  constructor() {
-    this.tasks = new Map();
-    this.completions = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getTasks(): Promise<Task[]> {
-    return Array.from(this.tasks.values()).filter(task => task.isActive);
+    const allTasks = await db.select().from(tasks).where(eq(tasks.isActive, true));
+    return allTasks;
   }
 
   async getTask(id: string): Promise<Task | undefined> {
-    return this.tasks.get(id);
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    return task || undefined;
   }
 
   async createTask(insertTask: InsertTask): Promise<Task> {
-    const id = randomUUID();
-    const task: Task = {
-      id,
-      title: insertTask.title,
-      description: insertTask.description ?? null,
-      time: insertTask.time,
-      frequency: insertTask.frequency,
-      dayOfMonth: insertTask.dayOfMonth ?? null,
-      monthOfYear: insertTask.monthOfYear ?? null,
-      dayOfYear: insertTask.dayOfYear ?? null,
-      isActive: insertTask.isActive ?? true,
-      createdAt: new Date(),
-    };
-    this.tasks.set(id, task);
+    const [task] = await db
+      .insert(tasks)
+      .values(insertTask)
+      .returning();
     return task;
   }
 
   async updateTask(id: string, insertTask: InsertTask): Promise<Task | undefined> {
-    const existingTask = this.tasks.get(id);
-    if (!existingTask) return undefined;
-
-    const updatedTask: Task = {
-      id,
-      title: insertTask.title,
-      description: insertTask.description ?? null,
-      time: insertTask.time,
-      frequency: insertTask.frequency,
-      dayOfMonth: insertTask.dayOfMonth ?? null,
-      monthOfYear: insertTask.monthOfYear ?? null,
-      dayOfYear: insertTask.dayOfYear ?? null,
-      isActive: insertTask.isActive ?? true,
-      createdAt: existingTask.createdAt,
-    };
-    this.tasks.set(id, updatedTask);
-    return updatedTask;
+    const [updatedTask] = await db
+      .update(tasks)
+      .set(insertTask)
+      .where(eq(tasks.id, id))
+      .returning();
+    return updatedTask || undefined;
   }
 
   async deleteTask(id: string): Promise<boolean> {
-    return this.tasks.delete(id);
+    const result = await db.delete(tasks).where(eq(tasks.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   async getCompletions(): Promise<Completion[]> {
-    return Array.from(this.completions.values());
+    return await db.select().from(completions);
   }
 
   async getCompletion(id: string): Promise<Completion | undefined> {
-    return this.completions.get(id);
+    const [completion] = await db.select().from(completions).where(eq(completions.id, id));
+    return completion || undefined;
   }
 
   async getCompletionsByTaskId(taskId: string): Promise<Completion[]> {
-    return Array.from(this.completions.values()).filter(c => c.taskId === taskId);
+    return await db.select().from(completions).where(eq(completions.taskId, taskId));
   }
 
   async getCompletionsByDate(date: string): Promise<Completion[]> {
-    return Array.from(this.completions.values()).filter(c => c.date === date);
+    return await db.select().from(completions).where(eq(completions.date, date));
   }
 
   async createCompletion(insertCompletion: InsertCompletion): Promise<Completion> {
-    const existing = Array.from(this.completions.values()).find(
-      c => c.taskId === insertCompletion.taskId && c.date === insertCompletion.date
-    );
+    const existing = await db
+      .select()
+      .from(completions)
+      .where(
+        and(
+          eq(completions.taskId, insertCompletion.taskId),
+          eq(completions.date, insertCompletion.date)
+        )
+      );
     
-    if (existing) {
-      return existing;
+    if (existing.length > 0) {
+      return existing[0];
     }
 
-    const id = randomUUID();
-    const completion: Completion = {
-      ...insertCompletion,
-      id,
-      completedAt: new Date(),
-    };
-    this.completions.set(id, completion);
+    const [completion] = await db
+      .insert(completions)
+      .values(insertCompletion)
+      .returning();
     return completion;
   }
 
   async deleteCompletion(id: string): Promise<boolean> {
-    return this.completions.delete(id);
+    const result = await db.delete(completions).where(eq(completions.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   async deleteCompletionByTaskAndDate(taskId: string, date: string): Promise<boolean> {
-    const completion = Array.from(this.completions.values()).find(
-      c => c.taskId === taskId && c.date === date
-    );
-    if (completion) {
-      return this.completions.delete(completion.id);
-    }
-    return false;
+    const result = await db
+      .delete(completions)
+      .where(
+        and(
+          eq(completions.taskId, taskId),
+          eq(completions.date, date)
+        )
+      );
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   private isTaskDueOnDate(task: Task, date: Date): boolean {
@@ -189,14 +172,14 @@ export class MemStorage implements IStorage {
 
   async getDailySummary(date: string): Promise<DailySummary> {
     const dateObj = new Date(date);
-    const tasks = await this.getTasks();
-    const completions = await this.getCompletionsByDate(date);
+    const allTasks = await this.getTasks();
+    const allCompletions = await this.getCompletionsByDate(date);
     
-    const tasksForDate = tasks.filter(task => this.isTaskDueOnDate(task, dateObj));
+    const tasksForDate = allTasks.filter(task => this.isTaskDueOnDate(task, dateObj));
     
     const tasksWithCompletion: TaskWithCompletion[] = await Promise.all(
       tasksForDate.map(async (task) => {
-        const completion = completions.find(c => c.taskId === task.id);
+        const completion = allCompletions.find(c => c.taskId === task.id);
         const streak = await this.calculateStreak(task.id, dateObj);
         const nextOccurrence = this.getNextOccurrence(task, dateObj);
         
@@ -224,7 +207,7 @@ export class MemStorage implements IStorage {
   }
 
   async getMonthlyStats(year: number, month: number): Promise<MonthlyStats> {
-    const tasks = await this.getTasks();
+    const allTasks = await this.getTasks();
     const daysInMonth = new Date(year, month, 0).getDate();
     
     const dailyCompletions = [];
@@ -235,9 +218,9 @@ export class MemStorage implements IStorage {
       const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const dateObj = new Date(date);
       
-      const tasksForDate = tasks.filter(task => this.isTaskDueOnDate(task, dateObj));
-      const completions = await this.getCompletionsByDate(date);
-      const completedCount = completions.filter(c => 
+      const tasksForDate = allTasks.filter(task => this.isTaskDueOnDate(task, dateObj));
+      const dayCompletions = await this.getCompletionsByDate(date);
+      const completedCount = dayCompletions.filter(c => 
         tasksForDate.some(t => t.id === c.taskId)
       ).length;
       
@@ -268,7 +251,7 @@ export class MemStorage implements IStorage {
     return {
       month: new Date(year, month - 1).toLocaleString('default', { month: 'long' }),
       year,
-      totalTasks: tasks.length,
+      totalTasks: allTasks.length,
       completedCount: totalCompletions,
       completionRate,
       streakDays: maxStreak,
@@ -277,4 +260,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
