@@ -51,6 +51,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/tasks/:id", async (req, res) => {
     try {
+      const completionsToDelete = await storage.getCompletionsByTaskId(req.params.id);
+      for (const completion of completionsToDelete) {
+        await storage.deleteCompletion(completion.id);
+      }
+      
+      const achievementsToDelete = await storage.getAchievementsByTaskId(req.params.id);
+      for (const achievement of achievementsToDelete) {
+        await storage.deleteAchievement(achievement.id);
+      }
+      
       const deleted = await storage.deleteTask(req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "Task not found" });
@@ -74,7 +84,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertCompletionSchema.parse(req.body);
       const completion = await storage.createCompletion(validatedData);
-      res.status(201).json(completion);
+      
+      const dateObj = new Date(validatedData.date);
+      const currentStreak = await storage.calculateStreak(validatedData.taskId, dateObj);
+      
+      const newAchievements = await storage.checkAndAwardMilestones(validatedData.taskId, currentStreak);
+      
+      res.status(201).json({ 
+        completion, 
+        newAchievements,
+        currentStreak 
+      });
     } catch (error) {
       res.status(400).json({ error: "Invalid completion data" });
     }
@@ -124,6 +144,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch monthly stats" });
+    }
+  });
+
+  app.get("/api/achievements", async (req, res) => {
+    try {
+      const achievements = await storage.getAchievements();
+      res.json(achievements);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch achievements" });
+    }
+  });
+
+  app.get("/api/achievements/task/:taskId", async (req, res) => {
+    try {
+      const achievements = await storage.getAchievementsByTaskId(req.params.taskId);
+      res.json(achievements);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch task achievements" });
     }
   });
 

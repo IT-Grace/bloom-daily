@@ -1,5 +1,5 @@
-import { type Task, type InsertTask, type Completion, type InsertCompletion, type TaskWithCompletion, type DailySummary, type MonthlyStats } from "@shared/schema";
-import { tasks, completions } from "@shared/schema";
+import { type Task, type InsertTask, type Completion, type InsertCompletion, type Achievement, type InsertAchievement, type TaskWithCompletion, type DailySummary, type MonthlyStats } from "@shared/schema";
+import { tasks, completions, achievements } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 
@@ -17,6 +17,12 @@ export interface IStorage {
   createCompletion(completion: InsertCompletion): Promise<Completion>;
   deleteCompletion(id: string): Promise<boolean>;
   deleteCompletionByTaskAndDate(taskId: string, date: string): Promise<boolean>;
+  
+  getAchievements(): Promise<Achievement[]>;
+  getAchievementsByTaskId(taskId: string): Promise<Achievement[]>;
+  createAchievement(achievement: InsertAchievement): Promise<Achievement>;
+  deleteAchievement(id: string): Promise<boolean>;
+  checkAndAwardMilestones(taskId: string, currentStreak: number): Promise<Achievement[]>;
   
   getDailySummary(date: string): Promise<DailySummary>;
   getMonthlyStats(year: number, month: number): Promise<MonthlyStats>;
@@ -111,6 +117,57 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount !== null && result.rowCount > 0;
   }
 
+  async getAchievements(): Promise<Achievement[]> {
+    return await db.select().from(achievements);
+  }
+
+  async getAchievementsByTaskId(taskId: string): Promise<Achievement[]> {
+    return await db.select().from(achievements).where(eq(achievements.taskId, taskId));
+  }
+
+  async createAchievement(insertAchievement: InsertAchievement): Promise<Achievement> {
+    const [achievement] = await db
+      .insert(achievements)
+      .values(insertAchievement)
+      .returning();
+    return achievement;
+  }
+
+  async deleteAchievement(id: string): Promise<boolean> {
+    const result = await db.delete(achievements).where(eq(achievements.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async checkAndAwardMilestones(taskId: string, currentStreak: number): Promise<Achievement[]> {
+    const existingAchievements = await this.getAchievementsByTaskId(taskId);
+    const newAchievements: Achievement[] = [];
+    
+    const milestones = [
+      { type: "7-day" as const, threshold: 7 },
+      { type: "30-day" as const, threshold: 30 },
+      { type: "100-day" as const, threshold: 100 },
+    ];
+    
+    for (const milestone of milestones) {
+      if (currentStreak >= milestone.threshold) {
+        const alreadyEarned = existingAchievements.some(
+          a => a.type === milestone.type
+        );
+        
+        if (!alreadyEarned) {
+          const achievement = await this.createAchievement({
+            taskId,
+            type: milestone.type,
+            streakCount: currentStreak,
+          });
+          newAchievements.push(achievement);
+        }
+      }
+    }
+    
+    return newAchievements;
+  }
+
   private isTaskDueOnDate(task: Task, date: Date): boolean {
     if (task.frequency === "daily") {
       return true;
@@ -127,7 +184,7 @@ export class DatabaseStorage implements IStorage {
     return false;
   }
 
-  private async calculateStreak(taskId: string, endDate: Date): Promise<number> {
+  async calculateStreak(taskId: string, endDate: Date): Promise<number> {
     const allCompletions = await this.getCompletionsByTaskId(taskId);
     const task = await this.getTask(taskId);
     if (!task) return 0;
@@ -182,6 +239,10 @@ export class DatabaseStorage implements IStorage {
         const completion = allCompletions.find(c => c.taskId === task.id);
         const streak = await this.calculateStreak(task.id, dateObj);
         const nextOccurrence = this.getNextOccurrence(task, dateObj);
+        const taskAchievements = await this.getAchievementsByTaskId(task.id);
+        const latestMilestone = taskAchievements.length > 0 
+          ? taskAchievements.sort((a, b) => b.streakCount - a.streakCount)[0]
+          : undefined;
         
         return {
           ...task,
@@ -189,6 +250,8 @@ export class DatabaseStorage implements IStorage {
           completionId: completion?.id,
           streak,
           nextOccurrence,
+          achievements: taskAchievements,
+          latestMilestone,
         };
       })
     );

@@ -4,16 +4,19 @@ import { TaskCard } from "@/components/task-card";
 import { StatsCard } from "@/components/stats-card";
 import { ProgressRing } from "@/components/progress-ring";
 import { TaskDialog } from "@/components/task-dialog";
+import { CelebrationDialog } from "@/components/celebration-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, CheckCircle2, Clock, TrendingUp, Sparkles } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
-import type { TaskWithCompletion, InsertTask, DailySummary } from "@shared/schema";
+import type { TaskWithCompletion, InsertTask, DailySummary, Achievement } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCelebrationOpen, setIsCelebrationOpen] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{ achievements: Achievement[]; taskTitle: string } | null>(null);
   const { toast } = useToast();
 
   const { data: summary, isLoading } = useQuery<DailySummary>({
@@ -31,9 +34,20 @@ export default function Dashboard() {
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: (data: any, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/summary/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      
+      if (data?.newAchievements && data.newAchievements.length > 0) {
+        const task = summary?.tasks.find(t => t.id === variables.taskId);
+        if (task) {
+          setCelebrationData({
+            achievements: data.newAchievements,
+            taskTitle: task.title,
+          });
+          setIsCelebrationOpen(true);
+        }
+      }
     },
   });
 
@@ -197,6 +211,15 @@ export default function Dashboard() {
         onSubmit={(data) => createTaskMutation.mutate(data)}
         isPending={createTaskMutation.isPending}
       />
+      
+      {celebrationData && (
+        <CelebrationDialog
+          open={isCelebrationOpen}
+          onOpenChange={setIsCelebrationOpen}
+          achievements={celebrationData.achievements}
+          taskTitle={celebrationData.taskTitle}
+        />
+      )}
     </div>
   );
 }

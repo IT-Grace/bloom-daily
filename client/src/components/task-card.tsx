@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AchievementBadge } from "@/components/achievement-badge";
 
 interface TaskCardProps {
   task: TaskWithCompletion;
@@ -92,6 +93,9 @@ export function TaskCard({ task, onToggleComplete, onEdit, onDelete, showActions
                   <Badge variant="secondary" className="text-xs bg-chart-1/10 text-chart-1 border-chart-1/20">
                     {task.streak} day streak
                   </Badge>
+                )}
+                {task.latestMilestone && (
+                  <AchievementBadge achievement={task.latestMilestone} size="sm" />
                 )}
               </div>
             </div>

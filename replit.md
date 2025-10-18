@@ -117,6 +117,12 @@ Bloom helps users build positive daily routines by:
   - Visual color accents on task cards
   - Category selection with "No category" option
   - Colored left border accent bars on task cards
+- ✅ Streak Rewards & Milestones feature implemented
+  - Milestone achievements at 7, 30, and 100 day streaks
+  - Achievement badges displayed on task cards (Star, Award, Trophy icons)
+  - Celebration dialog with animations when milestones are reached
+  - Achievements tracked in database with taskId and streak count
+  - Each milestone awarded only once per task
 
 ## Application Status
 

@@ -25,6 +25,14 @@ export const completions = pgTable("completions", {
   date: text("date").notNull(), // YYYY-MM-DD format for easy querying
 });
 
+export const achievements = pgTable("achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  taskId: varchar("task_id").notNull().references(() => tasks.id),
+  type: text("type").notNull(), // '7-day', '30-day', '100-day'
+  earnedAt: timestamp("earned_at").notNull().defaultNow(),
+  streakCount: integer("streak_count").notNull(), // The streak count when earned
+});
+
 export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
@@ -70,10 +78,21 @@ export const insertCompletionSchema = createInsertSchema(completions).omit({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
 });
 
+export const insertAchievementSchema = createInsertSchema(achievements).omit({
+  id: true,
+  earnedAt: true,
+}).extend({
+  taskId: z.string().min(1),
+  type: z.enum(["7-day", "30-day", "100-day"]),
+  streakCount: z.number().min(7),
+});
+
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;
 export type InsertCompletion = z.infer<typeof insertCompletionSchema>;
 export type Completion = typeof completions.$inferSelect;
+export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
+export type Achievement = typeof achievements.$inferSelect;
 
 // Extended types for frontend
 export type TaskWithCompletion = Task & {
@@ -81,6 +100,8 @@ export type TaskWithCompletion = Task & {
   completionId?: string;
   nextOccurrence?: string;
   streak?: number;
+  achievements?: Achievement[];
+  latestMilestone?: Achievement;
 };
 
 export type DailySummary = {
