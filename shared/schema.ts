@@ -12,6 +12,8 @@ export const tasks = pgTable("tasks", {
   dayOfMonth: integer("day_of_month"), // for monthly tasks (1-31)
   monthOfYear: integer("month_of_year"), // for yearly tasks (1-12)
   dayOfYear: integer("day_of_year"), // for yearly tasks (1-31)
+  category: text("category"), // category name (e.g., "Health", "Work", "Personal")
+  color: text("color").default("#FFD166"), // hex color for the category
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -33,6 +35,8 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   dayOfMonth: z.number().min(1).max(31).optional(),
   monthOfYear: z.number().min(1).max(12).optional(),
   dayOfYear: z.number().min(1).max(31).optional(),
+  category: z.string().optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a valid hex code").optional(),
 }).refine(
   (data) => {
     if (data.frequency === "monthly") {

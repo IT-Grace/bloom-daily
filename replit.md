@@ -1,6 +1,6 @@
 # Bloom - Daily Habit Tracker
 
-A beautiful habit tracking application with a feminine design using white, yellow, and grey tones. Built with React, Express, and in-memory storage.
+A beautiful habit tracking application with a feminine design using white, yellow, and grey tones. Built with React, Express, and PostgreSQL database.
 
 ## Overview
 
@@ -22,15 +22,16 @@ Bloom helps users build positive daily routines by:
 - **UI Library**: Shadcn components with custom theming
 
 ### Backend (Express + Node.js)
-- **Storage**: In-memory storage using MemStorage class
+- **Storage**: PostgreSQL database with Drizzle ORM
 - **API Routes**: RESTful endpoints for tasks and completions
-- **Data Models**: Tasks (with frequency scheduling) and Completions
+- **Data Models**: Tasks (with frequency scheduling and categories) and Completions
 
 ### Key Features
 1. **Task Management**
    - Create, edit, delete recurring tasks
    - Support for daily, monthly, and yearly frequencies
    - Time-based scheduling with specific times
+   - Organize tasks with categories and custom colors
 
 2. **Progress Tracking**
    - Mark tasks as complete/incomplete
@@ -47,14 +48,21 @@ Bloom helps users build positive daily routines by:
    - Calendar heatmap visualization
    - Streak tracking
 
+5. **Categories & Organization**
+   - 8 predefined categories (Health, Work, Personal, Fitness, Learning, Social, Creative, Mindfulness)
+   - Custom color-coding for each category
+   - Visual color accents on task cards
+   - Easy filtering and organization
+
 ## Data Schema
 
 ### Tasks
-- id, title, description (optional)
+- id (UUID), title, description (optional)
 - time (HH:MM format)
 - frequency (daily, monthly, yearly)
 - dayOfMonth (for monthly tasks)
 - monthOfYear, dayOfYear (for yearly tasks)
+- category (optional), color (hex code, default #FFD166)
 - isActive, createdAt
 
 ### Completions
@@ -103,6 +111,12 @@ Bloom helps users build positive daily routines by:
 - ✅ End-to-end testing completed successfully
 - ✅ All LSP errors resolved
 - ✅ TypeScript type safety enforced throughout
+- ✅ Migrated from in-memory storage to PostgreSQL database with Drizzle ORM
+- ✅ Task categories and color-coding feature implemented
+  - 8 predefined categories with custom colors
+  - Visual color accents on task cards
+  - Category selection with "No category" option
+  - Colored left border accent bars on task cards
 
 ## Application Status
 

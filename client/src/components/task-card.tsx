@@ -33,18 +33,25 @@ export function TaskCard({ task, onToggleComplete, onEdit, onDelete, showActions
   };
 
   return (
-    <Card className="p-4 hover-elevate transition-all duration-200">
-      <div className="flex items-start gap-3">
-        <div className="pt-1">
+    <div className="relative">
+      {task.category && task.color && (
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
+          style={{ backgroundColor: task.color }}
+        />
+      )}
+      <Card className="p-4 hover-elevate transition-all duration-200">
+        <div className="flex items-start gap-3 pl-2">
+          <div className="pt-1">
           <Checkbox
             checked={task.isCompletedToday || false}
             onCheckedChange={(checked) => onToggleComplete?.(task.id, !!checked)}
             className="w-6 h-6 rounded-full border-2 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
             data-testid={`checkbox-task-${task.id}`}
           />
-        </div>
-        
-        <div className="flex-1 min-w-0">
+          </div>
+          
+          <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1">
               <h3
@@ -61,6 +68,19 @@ export function TaskCard({ task, onToggleComplete, onEdit, onDelete, showActions
                 <p className="text-sm text-muted-foreground mb-2">{task.description}</p>
               )}
               <div className="flex items-center gap-2 flex-wrap">
+                {task.category && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs"
+                    style={{
+                      backgroundColor: `${task.color}15`,
+                      borderColor: task.color,
+                      color: task.color,
+                    }}
+                  >
+                    {task.category}
+                  </Badge>
+                )}
                 <Badge variant="outline" className={`text-xs ${frequencyColors[task.frequency as keyof typeof frequencyColors]}`}>
                   {frequencyLabels[task.frequency as keyof typeof frequencyLabels]}
                 </Badge>
@@ -101,7 +121,8 @@ export function TaskCard({ task, onToggleComplete, onEdit, onDelete, showActions
             )}
           </div>
         </div>
-      </div>
-    </Card>
+        </div>
+      </Card>
+    </div>
   );
 }

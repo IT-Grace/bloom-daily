@@ -28,6 +28,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const CATEGORY_OPTIONS = [
+  { name: "Health", color: "#88D498" },
+  { name: "Work", color: "#6B9BD1" },
+  { name: "Personal", color: "#FFD166" },
+  { name: "Fitness", color: "#F78888" },
+  { name: "Learning", color: "#C490D1" },
+  { name: "Social", color: "#FFB5A7" },
+  { name: "Creative", color: "#FEC8D8" },
+  { name: "Mindfulness", color: "#B8E0D2" },
+];
+
 interface TaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -48,6 +59,8 @@ export function TaskDialog({ open, onOpenChange, onSubmit, task, isPending }: Ta
           dayOfMonth: task.dayOfMonth || undefined,
           monthOfYear: task.monthOfYear || undefined,
           dayOfYear: task.dayOfYear || undefined,
+          category: task.category || "",
+          color: task.color || "#FFD166",
           isActive: task.isActive,
         }
       : {
@@ -55,11 +68,14 @@ export function TaskDialog({ open, onOpenChange, onSubmit, task, isPending }: Ta
           description: "",
           time: "09:00",
           frequency: "daily",
+          category: "",
+          color: "#FFD166",
           isActive: true,
         },
   });
 
   const frequency = form.watch("frequency");
+  const selectedCategory = form.watch("category");
 
   const handleSubmit = (data: InsertTask) => {
     onSubmit(data);
@@ -119,6 +135,57 @@ export function TaskDialog({ open, onOpenChange, onSubmit, task, isPending }: Ta
                       data-testid="input-task-description"
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category (optional)</FormLabel>
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === "none") {
+                        field.onChange("");
+                        form.setValue("color", "#FFD166");
+                      } else {
+                        field.onChange(value);
+                        const category = CATEGORY_OPTIONS.find(c => c.name === value);
+                        if (category) {
+                          form.setValue("color", category.color);
+                        }
+                      }
+                    }}
+                    value={field.value || "none"}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-task-category">
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded border border-border" />
+                          No category
+                        </div>
+                      </SelectItem>
+                      {CATEGORY_OPTIONS.map((cat) => (
+                        <SelectItem key={cat.name} value={cat.name}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-4 h-4 rounded"
+                              style={{ backgroundColor: cat.color }}
+                            />
+                            {cat.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
